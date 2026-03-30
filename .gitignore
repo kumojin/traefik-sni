@@ -1,0 +1,3 @@
+# Test artifacts (generated at runtime).
+test/certs/
+test/dynamic/active.yml

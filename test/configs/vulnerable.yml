@@ -1,0 +1,35 @@
+# Vulnerable configuration: host-based routing, NO sni-check middleware.
+# Demonstrates that domain fronting works — a request with
+# SNI=legit.localhost but Host: victim.localhost reaches the victim backend.
+
+http:
+  routers:
+    legit:
+      rule: "Host(`legit.localhost`)"
+      entryPoints:
+        - websecure
+      service: legit
+      tls: {}
+
+    victim:
+      rule: "Host(`victim.localhost`)"
+      entryPoints:
+        - websecure
+      service: victim
+      tls: {}
+
+  services:
+    legit:
+      loadBalancer:
+        servers:
+          - url: "http://legit:80"
+
+    victim:
+      loadBalancer:
+        servers:
+          - url: "http://victim:80"
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/cert.pem
+      keyFile: /etc/traefik/certs/key.pem

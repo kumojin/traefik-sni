@@ -1,0 +1,44 @@
+# Protected configuration: same routing as vulnerable.yml, but with the
+# sni-check middleware that blocks SNI/Host mismatches (421 Misdirected Request).
+
+http:
+  routers:
+    legit:
+      rule: "Host(`legit.localhost`)"
+      entryPoints:
+        - websecure
+      service: legit
+      tls: {}
+      middlewares:
+        - sni-check
+
+    victim:
+      rule: "Host(`victim.localhost`)"
+      entryPoints:
+        - websecure
+      service: victim
+      tls: {}
+      middlewares:
+        - sni-check
+
+  middlewares:
+    sni-check:
+      plugin:
+        traefik-sni:
+          allowedHosts: []
+
+  services:
+    legit:
+      loadBalancer:
+        servers:
+          - url: "http://legit:80"
+
+    victim:
+      loadBalancer:
+        servers:
+          - url: "http://victim:80"
+
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/cert.pem
+      keyFile: /etc/traefik/certs/key.pem

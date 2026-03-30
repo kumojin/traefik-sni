@@ -1,0 +1,64 @@
+name: Setup Traefik with test backends
+description: >
+  Creates a Docker network, starts two whoami backends, generates a
+  self-signed TLS certificate, and launches Traefik with the specified
+  configuration.
+
+inputs:
+  static-config:
+    description: Path to the Traefik static configuration file.
+    required: true
+  dynamic-config:
+    description: Path to the Traefik dynamic configuration file.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Create Docker network
+      shell: bash
+      run: docker network create sni-test-net
+
+    - name: Start whoami backends
+      shell: bash
+      run: |
+        docker run -d --name sni-test-legit  --network sni-test-net --network-alias legit  traefik/whoami --name legit
+        docker run -d --name sni-test-victim --network sni-test-net --network-alias victim traefik/whoami --name victim
+
+    - name: Generate self-signed TLS certificate
+      shell: bash
+      run: |
+        mkdir -p test/certs
+        openssl req -x509 -newkey rsa:2048 \
+          -keyout test/certs/key.pem \
+          -out test/certs/cert.pem \
+          -days 365 -nodes \
+          -subj "/CN=legit.localhost" \
+          -addext "subjectAltName=DNS:legit.localhost" \
+          2>/dev/null
+
+    - name: Start Traefik
+      shell: bash
+      run: |
+        docker run -d --name sni-test-traefik --network sni-test-net \
+          -p 443:443 \
+          -v "${{ github.workspace }}/${{ inputs.static-config }}:/etc/traefik/traefik.yml:ro" \
+          -v "${{ github.workspace }}/${{ inputs.dynamic-config }}:/etc/traefik/dynamic/active.yml:ro" \
+          -v "${{ github.workspace }}/test/certs/cert.pem:/etc/traefik/certs/cert.pem:ro" \
+          -v "${{ github.workspace }}/test/certs/key.pem:/etc/traefik/certs/key.pem:ro" \
+          -v "${{ github.workspace }}:/plugins-local/src/github.com/kumojin/traefik-sni:ro" \
+          traefik:v3.3
+
+    - name: Wait for Traefik to be ready
+      shell: bash
+      run: |
+        for i in $(seq 1 30); do
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 2 --insecure \
+            --resolve legit.localhost:443:127.0.0.1 \
+            https://legit.localhost/ 2>/dev/null) || true
+          [ "$STATUS" = "200" ] && exit 0
+          sleep 1
+        done
+        echo "Traefik did not become ready in time"
+        docker logs sni-test-traefik
+        exit 1
