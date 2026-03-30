@@ -28,10 +28,11 @@ runs:
     - name: Generate self-signed TLS certificate
       shell: bash
       run: |
-        mkdir -p test/certs
+        CERTS_DIR=$(mktemp -d)
+        echo "CERTS_DIR=$CERTS_DIR" >> "$GITHUB_ENV"
         openssl req -x509 -newkey rsa:2048 \
-          -keyout test/certs/key.pem \
-          -out test/certs/cert.pem \
+          -keyout "$CERTS_DIR/key.pem" \
+          -out "$CERTS_DIR/cert.pem" \
           -days 365 -nodes \
           -subj "/CN=legit.localhost" \
           -addext "subjectAltName=DNS:legit.localhost" \
@@ -44,8 +45,8 @@ runs:
           -p 443:443 \
           -v "${{ github.workspace }}/${{ inputs.static-config }}:/etc/traefik/traefik.yml:ro" \
           -v "${{ github.workspace }}/${{ inputs.dynamic-config }}:/etc/traefik/dynamic/active.yml:ro" \
-          -v "${{ github.workspace }}/test/certs/cert.pem:/etc/traefik/certs/cert.pem:ro" \
-          -v "${{ github.workspace }}/test/certs/key.pem:/etc/traefik/certs/key.pem:ro" \
+          -v "$CERTS_DIR/cert.pem:/etc/traefik/certs/cert.pem:ro" \
+          -v "$CERTS_DIR/key.pem:/etc/traefik/certs/key.pem:ro" \
           -v "${{ github.workspace }}:/plugins-local/src/github.com/kumojin/traefik-sni:ro" \
           traefik:v3.3
 

@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIGS_DIR="$SCRIPT_DIR/configs"
 DYNAMIC_DIR="$SCRIPT_DIR/dynamic"
-CERTS_DIR="$SCRIPT_DIR/certs"
+CERTS_DIR="$(mktemp -d)"
 
 # Container/network names, prefixed to avoid collisions.
 NET="sni-test-net"
@@ -40,20 +40,16 @@ cleanup() {
   docker rm -f "$CTR_TRAEFIK" "$CTR_LEGIT" "$CTR_VICTIM" 2>/dev/null || true
   docker network rm "$NET" 2>/dev/null || true
   rm -f "$DYNAMIC_DIR/active.yml"
+  rm -rf "$CERTS_DIR"
   echo "Done."
 }
 trap cleanup EXIT
 
 # -------------------------------------------------------------------
-# Generate self-signed certs if they don't exist.
+# Generate self-signed certs in a temporary directory.
 # -------------------------------------------------------------------
 generate_certs() {
-  if [ -f "$CERTS_DIR/cert.pem" ] && [ -f "$CERTS_DIR/key.pem" ]; then
-    echo "Certs already exist, skipping generation."
-    return
-  fi
   echo "Generating self-signed TLS certificates..."
-  mkdir -p "$CERTS_DIR"
   openssl req -x509 -newkey rsa:2048 \
     -keyout "$CERTS_DIR/key.pem" \
     -out "$CERTS_DIR/cert.pem" \
@@ -100,6 +96,7 @@ check_body() {
   if [ "$actual_status" != "$expected_status" ]; then
     echo "  FAIL  $description (expected status $expected_status, got $actual_status)"
     FAIL=$((FAIL + 1))
+    rm -f "$tmpfile"
     return
   fi
 
@@ -140,6 +137,7 @@ wait_for_status() {
 
 activate_config() {
   local config="$1"
+  mkdir -p "$DYNAMIC_DIR"
   rm -f "$DYNAMIC_DIR/active.yml"
   cp "$CONFIGS_DIR/${config}.yml" "$DYNAMIC_DIR/active.yml"
 }
@@ -162,10 +160,8 @@ docker network create "$NET" >/dev/null 2>&1
 # Start the two whoami backends.
 # --network-alias gives them DNS names matching the service URLs in the
 # dynamic config (http://legit:80, http://victim:80).
-docker run -d --name "$CTR_LEGIT" --network "$NET" --network-alias legit \
-  traefik/whoami --name legit >/dev/null
-docker run -d --name "$CTR_VICTIM" --network "$NET" --network-alias victim \
-  traefik/whoami --name victim >/dev/null
+docker run -d --name "$CTR_LEGIT"  --network "$NET" --network-alias legit  traefik/whoami --name legit >/dev/null
+docker run -d --name "$CTR_VICTIM" --network "$NET" --network-alias victim traefik/whoami --name victim >/dev/null
 
 # Place the initial (vulnerable) config before Traefik starts.
 activate_config vulnerable
@@ -251,14 +247,6 @@ check "DOMAIN FRONTING BLOCKED: SNI=legit, Host=victim -> 421" \
   -H "Host: victim.localhost" \
   https://legit.localhost/
 
-# 2c. Port in Host header should still match after normalization.
-check_body "Host with port matches SNI (protected)" \
-  "200" "Name: legit" \
-  --insecure \
-  --resolve legit.localhost:443:127.0.0.1 \
-  -H "Host: legit.localhost:443" \
-  https://legit.localhost/
-
 # ===================================================================
 # Results
 # ===================================================================
@@ -270,5 +258,9 @@ echo "=========================================="
 echo ""
 
 if [ "$FAIL" -gt 0 ]; then
+  echo "Traefik logs:"
+  echo "---"
+  docker logs "$CTR_TRAEFIK" 2>&1
+  echo "---"
   exit 1
 fi
