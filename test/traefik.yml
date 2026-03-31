@@ -1,0 +1,21 @@
+# Traefik static configuration for local plugin testing.
+
+log:
+  level: DEBUG
+
+entryPoints:
+  websecure:
+    address: ":443"
+
+experimental:
+  localPlugins:
+    traefik-sni:
+      moduleName: github.com/kumojin/traefik-sni
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+api:
+  dashboard: false

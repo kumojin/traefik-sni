@@ -1,0 +1,10 @@
+displayName: "SNI Host Match"
+type: middleware
+import: github.com/kumojin/traefik-sni
+
+summary: |
+  Compares the TLS SNI server name with the HTTP Host header and returns
+  421 Misdirected Request when they do not match. Prevents domain fronting
+  attacks where the SNI and Host header diverge.
+
+testData: {}

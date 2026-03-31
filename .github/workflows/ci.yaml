@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test -v -race ./...
+
+  e2e-vulnerable:
+    name: "E2E: domain fronting without plugin"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ./.github/actions/setup-traefik
+        with:
+          static-config: test/traefik.yml
+          dynamic-config: test/traefik-dynamic-vulnerable.yml
+
+      - name: Normal request to legit backend works
+        run: |
+          STATUS=$(curl -s -o /tmp/body -w '%{http_code}' --insecure --resolve legit.localhost:443:127.0.0.1 https://legit.localhost/)
+          [ "$STATUS" = "200" ] || { echo "Expected 200, got $STATUS"; cat /tmp/body; exit 1; }
+          grep -q "Name: legit" /tmp/body || { echo "Expected 'Name: legit'"; cat /tmp/body; exit 1; }
+
+      - name: "Domain fronting succeeds: SNI=legit, Host=victim reaches victim"
+        run: |
+          STATUS=$(curl -s -o /tmp/body -w '%{http_code}' --insecure --resolve legit.localhost:443:127.0.0.1 -H "Host: victim.localhost" https://legit.localhost/)
+          [ "$STATUS" = "200" ] || { echo "Expected 200, got $STATUS"; cat /tmp/body; exit 1; }
+          grep -q "Name: victim" /tmp/body || { echo "Domain fronting should reach victim backend"; cat /tmp/body; exit 1; }
+
+      - name: Dump Traefik logs on failure
+        if: failure()
+        run: docker logs sni-test-traefik
+
+  e2e-protected:
+    name: "E2E: plugin blocks domain fronting"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: ./.github/actions/setup-traefik
+        with:
+          static-config: test/traefik.yml
+          dynamic-config: test/traefik-dynamic-protected.yml
+
+      - name: Normal request to legit backend still works
+        run: |
+          STATUS=$(curl -s -o /tmp/body -w '%{http_code}' --insecure --resolve legit.localhost:443:127.0.0.1 https://legit.localhost/)
+          [ "$STATUS" = "200" ] || { echo "Expected 200, got $STATUS"; cat /tmp/body; exit 1; }
+          grep -q "Name: legit" /tmp/body || { echo "Expected 'Name: legit'"; cat /tmp/body; exit 1; }
+
+      - name: "Domain fronting blocked: SNI=legit, Host=victim returns 421"
+        run: |
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' --insecure --resolve legit.localhost:443:127.0.0.1 -H "Host: victim.localhost" https://legit.localhost/)
+          [ "$STATUS" = "421" ] || { echo "Expected 421, got $STATUS"; docker logs sni-test-traefik; exit 1; }
+
+      - name: Dump Traefik logs on failure
+        if: failure()
+        run: docker logs sni-test-traefik
