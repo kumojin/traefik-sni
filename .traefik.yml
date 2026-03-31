@@ -7,5 +7,4 @@ summary: |
   421 Misdirected Request when they do not match. Prevents domain fronting
   attacks where the SNI and Host header diverge.
 
-testData:
-  allowedHosts: []
+testData: {}

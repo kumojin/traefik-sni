@@ -6,7 +6,7 @@ package traefik_sni
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -14,11 +14,7 @@ import (
 )
 
 // Config holds the plugin configuration.
-type Config struct {
-	// AllowedHosts is an optional list of hostnames that are exempt from the
-	// SNI/Host match check. Useful for health-check endpoints or special cases.
-	AllowedHosts []string `json:"allowedHosts,omitempty"`
-}
+type Config struct{}
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
@@ -27,10 +23,9 @@ func CreateConfig() *Config {
 
 // SNIMatch is the middleware that enforces SNI/Host header consistency.
 type SNIMatch struct {
-	next         http.Handler
-	name         string
-	allowedHosts map[string]struct{}
-	logger       *log.Logger
+	next   http.Handler
+	name   string
+	logger *slog.Logger
 }
 
 // New creates a new SNIMatch middleware instance.
@@ -39,16 +34,10 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		return nil, fmt.Errorf("next handler cannot be nil")
 	}
 
-	allowed := make(map[string]struct{}, len(config.AllowedHosts))
-	for _, h := range config.AllowedHosts {
-		allowed[normalizeHost(h)] = struct{}{}
-	}
-
 	return &SNIMatch{
-		next:         next,
-		name:         name,
-		allowedHosts: allowed,
-		logger:       log.New(os.Stdout, fmt.Sprintf("[%s] ", name), log.Ldate|log.Ltime),
+		next:   next,
+		name:   name,
+		logger: slog.New(slog.NewTextHandler(os.Stderr, nil)).With("middleware", name),
 	}, nil
 }
 
@@ -73,14 +62,8 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Check the allowlist before rejecting.
-	if _, ok := m.allowedHosts[host]; ok {
-		m.next.ServeHTTP(rw, req)
-		return
-	}
-
 	if sni != host {
-		m.logger.Printf("misdirected request: SNI=%q Host=%q", sni, host)
+		m.logger.Warn("misdirected request", "sni", sni, "host", host)
 		rw.WriteHeader(http.StatusMisdirectedRequest)
 		return
 	}

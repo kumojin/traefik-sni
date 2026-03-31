@@ -24,8 +24,7 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni:
-          allowedHosts: []
+        traefik-sni: {}
 
   services:
     legit:

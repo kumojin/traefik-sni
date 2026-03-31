@@ -25,7 +25,7 @@ runs:
         docker run -d --name sni-test-legit  --network sni-test-net --network-alias legit  traefik/whoami --name legit
         docker run -d --name sni-test-victim --network sni-test-net --network-alias victim traefik/whoami --name victim
 
-    - name: Generate self-signed TLS certificate
+    - name: Generate self-signed wildcard TLS certificate
       shell: bash
       run: |
         CERTS_DIR=$(mktemp -d)
@@ -34,8 +34,8 @@ runs:
           -keyout "$CERTS_DIR/key.pem" \
           -out "$CERTS_DIR/cert.pem" \
           -days 365 -nodes \
-          -subj "/CN=legit.localhost" \
-          -addext "subjectAltName=DNS:legit.localhost" \
+          -subj "/CN=*.localhost" \
+          -addext "subjectAltName=DNS:*.localhost" \
           2>/dev/null
 
     - name: Start Traefik

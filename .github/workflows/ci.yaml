@@ -29,7 +29,7 @@ jobs:
       - uses: ./.github/actions/setup-traefik
         with:
           static-config: test/traefik.yml
-          dynamic-config: test/configs/vulnerable.yml
+          dynamic-config: test/traefik-dynamic-vulnerable.yml
 
       - name: Normal request to legit backend works
         run: |
@@ -56,7 +56,7 @@ jobs:
       - uses: ./.github/actions/setup-traefik
         with:
           static-config: test/traefik.yml
-          dynamic-config: test/configs/protected.yml
+          dynamic-config: test/traefik-dynamic-protected.yml
 
       - name: Normal request to legit backend still works
         run: |

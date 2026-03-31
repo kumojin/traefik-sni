@@ -18,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CONFIGS_DIR="$SCRIPT_DIR/configs"
+CONFIG_PREFIX="$SCRIPT_DIR/traefik-dynamic"
 DYNAMIC_DIR="$SCRIPT_DIR/dynamic"
 CERTS_DIR="$(mktemp -d)"
 
@@ -46,16 +46,19 @@ cleanup() {
 trap cleanup EXIT
 
 # -------------------------------------------------------------------
-# Generate self-signed certs in a temporary directory.
+# Generate self-signed wildcard cert in a temporary directory.
+# A wildcard models the real-world scenario: shared infrastructure
+# (CDN, cloud proxy) where one cert covers all tenant subdomains,
+# making domain fronting invisible at the TLS layer.
 # -------------------------------------------------------------------
 generate_certs() {
-  echo "Generating self-signed TLS certificates..."
+  echo "Generating self-signed wildcard TLS certificate (*.localhost)..."
   openssl req -x509 -newkey rsa:2048 \
     -keyout "$CERTS_DIR/key.pem" \
     -out "$CERTS_DIR/cert.pem" \
     -days 365 -nodes \
-    -subj "/CN=legit.localhost" \
-    -addext "subjectAltName=DNS:legit.localhost" \
+    -subj "/CN=*.localhost" \
+    -addext "subjectAltName=DNS:*.localhost" \
     2>/dev/null
   echo "Certs generated."
 }
@@ -139,7 +142,7 @@ activate_config() {
   local config="$1"
   mkdir -p "$DYNAMIC_DIR"
   rm -f "$DYNAMIC_DIR/active.yml"
-  cp "$CONFIGS_DIR/${config}.yml" "$DYNAMIC_DIR/active.yml"
+  cp "$CONFIG_PREFIX-${config}.yml" "$DYNAMIC_DIR/active.yml"
 }
 
 # ===================================================================
