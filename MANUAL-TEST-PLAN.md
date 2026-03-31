@@ -3,6 +3,11 @@
 Test the plugin on a real server to validate it blocks domain fronting
 in a production-like environment.
 
+> **Before you start:** replace every occurrence of `example.com` in
+> this document with your actual base domain, and `<DROPLET_IP>` with
+> your droplet's public IP. This affects the certificate, configs, and
+> curl commands throughout.
+
 ## Overview
 
 Two phases, same approach as the automated e2e tests:
@@ -15,9 +20,9 @@ Two phases, same approach as the automated e2e tests:
 
 ## Prerequisites
 
-- A DigitalOcean droplet (Ubuntu 22.04+ recommended)
+- A DigitalOcean droplet (Debian 12+ recommended)
 - Docker installed on the droplet
-- Two DNS A records pointing to the droplet's IP, e.g.:
+- A domain you control with two DNS A records pointing to the droplet:
   - `legit.example.com` → `<DROPLET_IP>`
   - `victim.example.com` → `<DROPLET_IP>`
 - The GitHub repo **must be public** for Traefik's GitHub plugin
@@ -76,8 +81,10 @@ docker run -d --name victim --network sni-test traefik/whoami --name victim
 
 ## Step 4: Write the Traefik static config
 
-Replace `legit.example.com` and `victim.example.com` with your actual
-domains throughout this file and the dynamic configs below.
+All config and cert files live in `~/traefik-test` on the droplet.
+Traefik runs inside a Docker container — the `docker run` command in
+step 6 mounts these local files into the container at the
+`/etc/traefik/` paths that the configs reference.
 
 Create `traefik.yml`:
 
