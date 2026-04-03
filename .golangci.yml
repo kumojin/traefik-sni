@@ -1,0 +1,80 @@
+version: "2"
+
+run:
+  modules-download-mode: readonly
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  enable:
+    - dupl
+    - exhaustive
+    - goconst
+    - gocritic
+    - gocyclo
+    - goprintffuncname
+    - gosec
+    - lll
+    - misspell
+    - nakedret
+    - nolintlint
+    - staticcheck
+    - unconvert
+    - unparam
+    - whitespace
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    govet:
+      enable:
+        - atomicalign
+        - deepequalerrors
+        - findcall
+        - nilness
+        - reflectvaluecompare
+        - sortslice
+        - timeformat
+        - unusedwrite
+    lll:
+      line-length: 120
+    misspell:
+      locale: US
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - std-error-handling
+
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - goconst
+          - gocritic
+          - gocyclo
+          - gosec
+          - lll
+        path: _test\.go
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/kumojin/traefik-sni
+
+  exclusions:
+    generated: lax
