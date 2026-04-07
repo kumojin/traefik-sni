@@ -1,7 +1,5 @@
 # traefik-sni
 
-[![CI](https://github.com/kumojin/traefik-sni/actions/workflows/ci.yaml/badge.svg)](https://github.com/kumojin/traefik-sni/actions/workflows/ci.yaml)
-
 A Traefik middleware plugin that prevents domain fronting by comparing the TLS SNI server name with the HTTP Host header.
 
 ## What is domain fronting?
@@ -10,7 +8,7 @@ Domain fronting exploits the gap between TLS-level and HTTP-level routing. The T
 
 ```
 Client → TLS SNI: legit.example.com  → Traefik → Routes on Host header
-         HTTP Host: victim.example.com            → victim backend (!)
+         HTTP Host: victim.example.com         → victim backend (!)
 ```
 
 ## What this plugin does
@@ -46,7 +44,7 @@ experimental:
 
 ### Plugin Catalog
 
-For production use:
+For production, the plugin published in the [Traefik Plugin Catalog](https://plugins.traefik.io) is used:
 
 ```yaml
 experimental:
@@ -55,8 +53,6 @@ experimental:
       moduleName: github.com/kumojin/traefik-sni
       version: v0.1.0
 ```
-
-> Available once the plugin is published to the [Traefik Plugin Catalog](https://plugins.traefik.io).
 
 ## Configuration
 
@@ -91,9 +87,9 @@ http:
 ### Commands
 
 ```sh
+just test-style   # Run linter
 just test-unit    # Run unit tests
 just test-e2e     # Run end-to-end tests
-just test-style   # Run linter
 just test         # Run all of the above
 ```
 
@@ -101,8 +97,4 @@ The end-to-end test is a self-contained script at [`./test/test.sh`](./test/test
 
 ## Manual testing
 
-See the [manual testing guide](docs/manual-testing.md) for instructions on testing the plugin on a real server.
-
-## License
-
-Licensed under the [Apache License 2.0](LICENSE).
+See the [manual testing guide](docs/manual-test.md) for instructions on testing the plugin on a real server.

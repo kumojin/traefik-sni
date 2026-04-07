@@ -28,10 +28,10 @@ Traefik middleware plugin, interpreted by Yaegi at runtime (no compilation). Pre
 ├── .agents/skills/                # AI agent skills (git workflow conventions)
 ├── README.md                      # Project documentation
 ├── AGENTS.md                      # This file
-├── LICENSE                        # Apache 2.0
+├── LICENSE                        # MIT
 ├── .gitignore                     # test/dynamic/
 ├── .golangci.yml                  # Linter config
-└── justfile                       # Task runner (test-unit, test-e2e, test-style, test)
+└── justfile                       # Task runner (test, test-style, test-unit, test-e2e)
 ```
 
 ## Yaegi Constraints
@@ -53,33 +53,15 @@ Three methods exist:
 ## Testing
 
 ```
+just test-style   # golangci-lint run ./... (Docker fallback if not installed)
 just test-unit    # go test -v -race ./...
 just test-e2e     # ./test/test.sh (needs Docker)
-just test-style   # golangci-lint run ./... (Docker fallback if not installed)
 just test         # all of the above
 ```
 
-## Commit Convention
+## Git & GitHub Conventions
 
-Conventional commits:
-
-- `feat:` -- new feature or behavior change
-- `fix:` -- bug fix
-- `docs:` -- documentation only
-- `ci:` -- CI/CD changes
-- `test:` -- test changes only
-- `chore:` -- maintenance (deps, config, tooling)
-
-Scope optional: `feat(config): add allowedHosts parameter`
-
-Rules: imperative mood, lowercase, no period, max 72 chars.
-
-## PR Convention
-
-- Title: conventional commit format.
-- Body: `## Summary` with 1-3 bullet points.
-- Merge: squash merge to main, delete branch after.
-- Include test evidence when relevant.
+See `.agents/skills/git-workflow/SKILL.md` if needed.
 
 ## Key Decisions
 

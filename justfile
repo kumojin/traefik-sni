@@ -1,5 +1,7 @@
 set shell := ["bash", "-o", "pipefail", "-cu"]
 
+golangci_version := "2.11.4"
+
 default:
   @just --list
 
@@ -16,10 +18,16 @@ test-style:
   fi
 
 _test-style-local:
+  #!/usr/bin/env sh
+  installed=$(golangci-lint version --short)
+  if [ "$installed" != "{{golangci_version}}" ]; then
+    echo "Error: golangci-lint version: expected \`{{golangci_version}}\`, actual \`${installed}\`" >&2
+    exit 1
+  fi
   golangci-lint run ./...
 
 _test-style-docker:
-  docker run --rm --workdir /app --volume ./:/app golangci/golangci-lint:v2.11-alpine golangci-lint run ./...
+  docker run --rm --workdir /app --volume ./:/app golangci/golangci-lint:v{{golangci_version}}-alpine golangci-lint run ./...
 
 # Run unit tests with race detection.
 test-unit:

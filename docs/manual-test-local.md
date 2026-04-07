@@ -6,16 +6,18 @@ Prove the traefik-sni plugin blocks domain fronting using Traefik's local plugin
 
 ## Get the plugin source
 
-On the server, clone the repo into the working directory:
+On the server, clone the repo into the path Traefik expects for local plugins (relative to the working directory):
 
 ```bash
-git clone https://github.com/kumojin/traefik-sni.git ~/traefik-test/traefik-sni
+mkdir -p plugins-local/src/github.com/kumojin
+git clone https://github.com/kumojin/traefik-sni.git \
+  plugins-local/src/github.com/kumojin/traefik-sni
 ```
 
 Or copy from your local machine:
 
 ```bash
-scp -r ./traefik-sni root@<SERVER_IP>:~/traefik-test/
+scp -r ./traefik-sni root@<SERVER_IP>:~/traefik-test/plugins-local/src/github.com/kumojin/traefik-sni
 ```
 
 ## Static config
@@ -37,13 +39,13 @@ experimental:
 
 providers:
   file:
-    directory: /etc/traefik/dynamic
+    directory: ./dynamic
     watch: true
 ```
 
 ## Dynamic config
 
-Create (or replace) `dynamic.yml`:
+Create (or replace) `dynamic/dynamic.yml`:
 
 ```yaml
 http:
@@ -75,40 +77,32 @@ http:
     legit:
       loadBalancer:
         servers:
-          - url: "http://legit:80"
+          - url: "http://127.0.0.1:8001"
 
     victim:
       loadBalancer:
         servers:
-          - url: "http://victim:80"
+          - url: "http://127.0.0.1:8002"
 
 tls:
   certificates:
-    - certFile: /etc/traefik/certs/cert.pem
-      keyFile: /etc/traefik/certs/key.pem
+    - certFile: certs/cert.pem
+      keyFile: certs/key.pem
 ```
 
 ## Start Traefik
 
 ```bash
-docker run -d --name traefik --network sni-test \
-  -p 443:443 \
-  -v $(pwd)/traefik.yml:/etc/traefik/traefik.yml:ro \
-  -v $(pwd)/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro \
-  -v $(pwd)/certs:/etc/traefik/certs:ro \
-  -v $(pwd)/traefik-sni:/plugins-local/src/github.com/kumojin/traefik-sni:ro \
-  traefik:v3.3
+traefik --configfile traefik.yml &
 ```
-
-> The extra volume mount maps the plugin source into the path Traefik expects for local plugins.
 
 ### Verify plugin loaded
 
 ```bash
-docker logs traefik 2>&1 | grep -i plugin
+traefik version
 ```
 
-You should see a log line about loading `traefik-sni`.
+Check the log output for a line about loading `traefik-sni`.
 
 ## Tests
 
@@ -146,7 +140,7 @@ Expected: `< HTTP/2 421`.
 ## Stop Traefik
 
 ```bash
-docker rm -f traefik
+pkill traefik
 ```
 
-See [cleanup instructions](manual-testing.md#cleanup) to tear down the full environment.
+See [cleanup instructions](manual-test.md#cleanup) to tear down the full environment.

@@ -22,4 +22,4 @@ experimental:
       version: v0.1.0
 ```
 
-The dynamic config (middleware definition and router references) remains the same as in the [local plugin test](manual-test-local-plugin.md). No extra volume mount is needed -- Traefik downloads the plugin source from GitHub automatically.
+The dynamic config (middleware definition and router references) remains the same as in the [local plugin test](manual-test-local.md). No local plugin source is needed -- Traefik downloads it from GitHub automatically.

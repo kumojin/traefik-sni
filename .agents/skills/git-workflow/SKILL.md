@@ -69,7 +69,12 @@ Include test evidence (command output, screenshots) when relevant.
 ## Releases
 
 - Tag format: `v<major>.<minor>.<patch>` (semver)
+- Version bumping:
+  - **Major** (`v2.0.0`): breaking changes (removed/renamed config fields, changed default behavior)
+  - **Minor** (`v1.1.0`): new features, new config options (backward-compatible)
+  - **Patch** (`v1.0.1`): bug fixes, documentation, internal refactors (no behavior change)
 - Pushing a tag triggers the CD workflow, which creates a GitHub Release with auto-generated release notes
+- Use the `gh` CLI for creating PRs and releases (preferred over the GitHub web UI)
 - Process:
   1. Merge PR to `main`
   2. Create tag: `git tag v1.0.0`
