@@ -18,10 +18,12 @@ The plugin compares the TLS SNI value with the HTTP Host header on every request
 | Condition | Result |
 |-----------|--------|
 | No TLS (`req.TLS == nil`) | Pass through |
-| Empty SNI | Pass through |
-| Empty Host | Pass through |
+| Empty SNI | **421** if `rejectOnMissingSNI` (default), else pass through |
+| Empty Host | **421** if `rejectOnMissingHost`, else pass through |
 | SNI matches Host | Pass through |
 | SNI does not match Host | **421 Misdirected Request** |
+
+In `audit` mode, all violations are logged but requests are allowed through.
 
 ## Installation
 
@@ -56,8 +58,6 @@ experimental:
 
 ## Configuration
 
-The middleware currently takes no configuration parameters. Future versions may add options such as allowed hosts, reject-on-missing-SNI, and audit mode.
-
 Dynamic configuration (`dynamic.yml`):
 
 ```yaml
@@ -65,7 +65,10 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni: {}
+        traefik-sni:
+          mode: enforce
+          rejectOnMissingSNI: true
+          rejectOnMissingHost: false
 
   routers:
     my-router:
@@ -75,6 +78,20 @@ http:
       tls: {}
       service: my-service
 ```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `mode` | string | `"enforce"` | `"enforce"` blocks mismatches with 421. `"audit"` logs warnings but allows requests through. |
+| `rejectOnMissingSNI` | bool | `true` | Reject TLS requests where the client omitted the SNI extension. |
+| `rejectOnMissingHost` | bool | `false` | Reject TLS requests with an empty HTTP Host header. |
+
+Use `mode: audit` for safe rollout: deploy the middleware, observe logs to confirm no legitimate traffic is flagged, then switch to `mode: enforce`.
+
+`rejectOnMissingSNI` defaults to `true` because a client can bypass the middleware entirely by omitting the SNI extension from the TLS ClientHello. Operators with legitimate empty-SNI traffic (rare) can set this to `false`.
+
+`rejectOnMissingHost` defaults to `false` because an empty Host header is nearly impossible in practice: HTTP/1.1 mandates the Host header, and HTTP/2+ always provides `:authority`.
 
 ## Development
 
