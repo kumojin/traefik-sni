@@ -15,8 +15,9 @@ import (
 
 // Config holds the plugin configuration.
 type Config struct {
-	Mode               string `json:"mode,omitempty"`
-	RejectOnMissingSNI bool   `json:"rejectOnMissingSNI,omitempty"`
+	Mode                string `json:"mode,omitempty"`
+	RejectOnMissingSNI  bool   `json:"rejectOnMissingSNI,omitempty"`
+	RejectOnMissingHost bool   `json:"rejectOnMissingHost,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
@@ -69,6 +70,12 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// If SNI is missing and the config says to reject, do so.
 	if sni == "" && m.config.RejectOnMissingSNI {
 		m.reject(rw, req, "missing SNI", sni, host)
+		return
+	}
+
+	// If Host is missing and the config says to reject, do so.
+	if host == "" && m.config.RejectOnMissingHost {
+		m.reject(rw, req, "missing Host header", sni, host)
 		return
 	}
 

@@ -75,7 +75,7 @@ func TestServeHTTP(t *testing.T) {
 
 		// Empty values — cannot compare, pass through.
 		"empty SNI rejected by default": {"", "example.com", nil, http.StatusMisdirectedRequest, false},
-		"empty Host":                    {"example.com", "", nil, http.StatusOK, true},
+		"empty Host allowed by default": {"example.com", "", nil, http.StatusOK, true},
 
 		// Empty SNI -- allowed when rejectOnMissingSNI=false.
 		"empty SNI allowed when configured": {
@@ -88,6 +88,20 @@ func TestServeHTTP(t *testing.T) {
 		"empty SNI audit mode": {
 			"", "example.com",
 			&traefik_sni.Config{Mode: "audit", RejectOnMissingSNI: true},
+			http.StatusOK, true,
+		},
+
+		// Empty Host -- rejected when configured.
+		"empty Host rejected when configured": {
+			"example.com", "",
+			&traefik_sni.Config{Mode: "enforce", RejectOnMissingSNI: true, RejectOnMissingHost: true},
+			http.StatusMisdirectedRequest, false,
+		},
+
+		// Empty Host -- audit mode logs but allows.
+		"empty Host audit mode": {
+			"example.com", "",
+			&traefik_sni.Config{Mode: "audit", RejectOnMissingSNI: true, RejectOnMissingHost: true},
 			http.StatusOK, true,
 		},
 	}
