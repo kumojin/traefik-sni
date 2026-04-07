@@ -40,7 +40,7 @@ Traefik middleware plugin, interpreted by Yaegi at runtime (no compilation). Pre
 - Must export: `Config` struct, `CreateConfig() *Config`, `New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error)`.
 - `.traefik.yml` manifest required with `displayName`, `type: middleware`, `import`, `summary`, `testData`.
 - `log/slog` works fine with Traefik v3.3+ (Go 1.23 runtime) -- earlier suspicion about incompatibility was wrong.
-- Config has three fields: `mode` (enforce/audit), `rejectOnMissingSNI`, `rejectOnMissingHost`.
+- Config has three fields: `rejectOnMissingSNI`, `rejectOnMissingHost`, `logOnly` (all bool).
 
 ## Plugin Loading
 
@@ -66,7 +66,7 @@ See `.agents/skills/git-workflow/SKILL.md` if needed.
 ## Key Decisions
 
 - `log/slog` is Yaegi-compatible with Traefik v3.3+ -- earlier hypothesis was wrong.
-- Config struct has three fields: `mode`, `rejectOnMissingSNI`, `rejectOnMissingHost`.
+- Config struct has three fields: `rejectOnMissingSNI`, `rejectOnMissingHost`, `logOnly`.
 - Wildcard TLS certs in tests model real shared-infrastructure domain fronting scenarios.
 - `localPlugins` for dev/CI; Plugin Catalog for production distribution.
 - Test tables use `map[string]struct{}` pattern (idiomatic Go, unordered).

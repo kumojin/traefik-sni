@@ -15,15 +15,14 @@ import (
 
 // Config holds the plugin configuration.
 type Config struct {
-	Mode                string `json:"mode,omitempty"`
-	RejectOnMissingSNI  bool   `json:"rejectOnMissingSNI,omitempty"`
-	RejectOnMissingHost bool   `json:"rejectOnMissingHost,omitempty"`
+	RejectOnMissingSNI  bool `json:"rejectOnMissingSNI,omitempty"`
+	RejectOnMissingHost bool `json:"rejectOnMissingHost,omitempty"`
+	LogOnly             bool `json:"logOnly,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
-		Mode:               "enforce",
 		RejectOnMissingSNI: true,
 	}
 }
@@ -40,10 +39,6 @@ type SNIMatch struct {
 func New(_ context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	if next == nil {
 		return nil, fmt.Errorf("next handler cannot be nil")
-	}
-
-	if config.Mode != "enforce" && config.Mode != "audit" {
-		return nil, fmt.Errorf("invalid mode %q: must be \"enforce\" or \"audit\"", config.Mode)
 	}
 
 	return &SNIMatch{
@@ -95,12 +90,12 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	m.next.ServeHTTP(rw, req)
 }
 
-// reject handles a policy violation. In audit mode, it logs the event but
-// forwards the request to the next handler. In enforce mode (the default),
-// it logs and returns 421 Misdirected Request.
+// reject handles a policy violation. In log-only mode, it logs the event but
+// forwards the request to the next handler. Otherwise (the default), it logs
+// and returns 421 Misdirected Request.
 func (m *SNIMatch) reject(rw http.ResponseWriter, req *http.Request, msg, sni, host string) {
-	if m.config.Mode == "audit" {
-		m.logger.Warn(msg+" (audit mode, request allowed)", "sni", sni, "host", host)
+	if m.config.LogOnly {
+		m.logger.Warn(msg+" (log-only mode, request allowed)", "sni", sni, "host", host)
 		m.next.ServeHTTP(rw, req)
 		return
 	}

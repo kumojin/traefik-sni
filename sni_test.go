@@ -19,15 +19,6 @@ func TestNew_NilNext(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestNew_InvalidMode(t *testing.T) {
-	next := new(MockHandler)
-	config := traefik_sni.CreateConfig()
-	config.Mode = "invalid"
-	_, err := traefik_sni.New(context.Background(), next, config, "test")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid mode")
-}
-
 func TestServeHTTP_NoTLS(t *testing.T) {
 	next := new(MockHandler)
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Once()
@@ -70,8 +61,8 @@ func TestServeHTTP(t *testing.T) {
 		// Port and trailing dot together.
 		"match port and FQDN dot": {"example.com", "example.com.:443", nil, http.StatusOK, true},
 
-		// Audit mode — mismatch logged but not blocked.
-		"mismatch audit mode": {"a.example.com", "b.example.com", &traefik_sni.Config{Mode: "audit"}, http.StatusOK, true},
+		// Log-only mode — mismatch logged but not blocked.
+		"mismatch log-only mode": {"a.example.com", "b.example.com", &traefik_sni.Config{LogOnly: true}, http.StatusOK, true},
 
 		// Empty values — cannot compare, pass through.
 		"empty SNI rejected by default": {"", "example.com", nil, http.StatusMisdirectedRequest, false},
@@ -80,28 +71,28 @@ func TestServeHTTP(t *testing.T) {
 		// Empty SNI -- allowed when rejectOnMissingSNI=false.
 		"empty SNI allowed when configured": {
 			"", "example.com",
-			&traefik_sni.Config{Mode: "enforce", RejectOnMissingSNI: false},
+			&traefik_sni.Config{RejectOnMissingSNI: false},
 			http.StatusOK, true,
 		},
 
-		// Empty SNI -- audit mode logs but allows.
-		"empty SNI audit mode": {
+		// Empty SNI -- log-only mode logs but allows.
+		"empty SNI log-only mode": {
 			"", "example.com",
-			&traefik_sni.Config{Mode: "audit", RejectOnMissingSNI: true},
+			&traefik_sni.Config{LogOnly: true, RejectOnMissingSNI: true},
 			http.StatusOK, true,
 		},
 
 		// Empty Host -- rejected when configured.
 		"empty Host rejected when configured": {
 			"example.com", "",
-			&traefik_sni.Config{Mode: "enforce", RejectOnMissingSNI: true, RejectOnMissingHost: true},
+			&traefik_sni.Config{RejectOnMissingSNI: true, RejectOnMissingHost: true},
 			http.StatusMisdirectedRequest, false,
 		},
 
-		// Empty Host -- audit mode logs but allows.
-		"empty Host audit mode": {
+		// Empty Host -- log-only mode logs but allows.
+		"empty Host log-only mode": {
 			"example.com", "",
-			&traefik_sni.Config{Mode: "audit", RejectOnMissingSNI: true, RejectOnMissingHost: true},
+			&traefik_sni.Config{LogOnly: true, RejectOnMissingSNI: true, RejectOnMissingHost: true},
 			http.StatusOK, true,
 		},
 	}

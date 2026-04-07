@@ -8,6 +8,6 @@ summary: |
   attacks where the SNI and Host header diverge.
 
 testData:
-  mode: enforce
   rejectOnMissingSNI: true
   rejectOnMissingHost: false
+  logOnly: false

@@ -23,7 +23,7 @@ The plugin compares the TLS SNI value with the HTTP Host header on every request
 | SNI matches Host | Pass through |
 | SNI does not match Host | **421 Misdirected Request** |
 
-In `audit` mode, all violations are logged but requests are allowed through.
+In `logOnly` mode, all violations are logged but requests are allowed through.
 
 ## Installation
 
@@ -66,9 +66,9 @@ http:
     sni-check:
       plugin:
         traefik-sni:
-          mode: enforce
           rejectOnMissingSNI: true
           rejectOnMissingHost: false
+          logOnly: false
 
   routers:
     my-router:
@@ -83,11 +83,11 @@ http:
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `mode` | string | `"enforce"` | `"enforce"` blocks mismatches with 421. `"audit"` logs warnings but allows requests through. |
 | `rejectOnMissingSNI` | bool | `true` | Reject TLS requests where the client omitted the SNI extension. |
 | `rejectOnMissingHost` | bool | `false` | Reject TLS requests with an empty HTTP Host header. |
+| `logOnly` | bool | `false` | Log violations without blocking requests. Useful for safe rollout before enforcing. |
 
-Use `mode: audit` for safe rollout: deploy the middleware, observe logs to confirm no legitimate traffic is flagged, then switch to `mode: enforce`.
+Use `logOnly: true` for safe rollout: deploy the middleware, observe logs to confirm no legitimate traffic is flagged, then switch to `logOnly: false`.
 
 `rejectOnMissingSNI` defaults to `true` because a client can bypass the middleware entirely by omitting the SNI extension from the TLS ClientHello. Operators with legitimate empty-SNI traffic (rare) can set this to `false`.
 
