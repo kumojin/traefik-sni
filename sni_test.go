@@ -70,6 +70,9 @@ func TestServeHTTP(t *testing.T) {
 		// Port and trailing dot together.
 		"match port and FQDN dot": {"example.com", "example.com.:443", nil, http.StatusOK, true},
 
+		// Audit mode — mismatch logged but not blocked.
+		"mismatch audit mode": {"a.example.com", "b.example.com", &traefik_sni.Config{Mode: "audit"}, http.StatusOK, true},
+
 		// Empty values — cannot compare, pass through.
 		"empty SNI":  {"", "example.com", nil, http.StatusOK, true},
 		"empty Host": {"example.com", "", nil, http.StatusOK, true},

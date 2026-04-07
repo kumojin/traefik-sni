@@ -73,12 +73,24 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if sni != host {
-		m.logger.Warn("misdirected request", "sni", sni, "host", host)
-		rw.WriteHeader(http.StatusMisdirectedRequest)
+		m.reject(rw, req, "misdirected request", sni, host)
 		return
 	}
 
 	m.next.ServeHTTP(rw, req)
+}
+
+// reject handles a policy violation. In audit mode, it logs the event but
+// forwards the request to the next handler. In enforce mode (the default),
+// it logs and returns 421 Misdirected Request.
+func (m *SNIMatch) reject(rw http.ResponseWriter, req *http.Request, msg, sni, host string) {
+	if m.config.Mode == "audit" {
+		m.logger.Warn(msg+" (audit mode, request allowed)", "sni", sni, "host", host)
+		m.next.ServeHTTP(rw, req)
+		return
+	}
+	m.logger.Warn(msg, "sni", sni, "host", host)
+	rw.WriteHeader(http.StatusMisdirectedRequest)
 }
 
 // normalizeHost extracts the hostname, strips the port if present, removes a
