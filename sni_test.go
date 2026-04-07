@@ -22,7 +22,7 @@ func TestNew_NilNext(t *testing.T) {
 func TestServeHTTP_NoTLS(t *testing.T) {
 	next := new(MockHandler)
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Once()
-	handler := newMiddleware(t, next)
+	handler := newMiddleware(t, next, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
 	rr := httptest.NewRecorder()
@@ -37,39 +37,40 @@ func TestServeHTTP(t *testing.T) {
 	tests := map[string]struct {
 		sni            string
 		host           string
+		config         *traefik_sni.Config // nil = CreateConfig() defaults
 		wantStatus     int
 		wantNextCalled bool
 	}{
 		// Matching hosts — request passes through.
-		"match bare":                   {"example.com", "example.com", http.StatusOK, true},
-		"match with standard port":     {"example.com", "example.com:443", http.StatusOK, true},
-		"match with non-standard port": {"example.com", "example.com:8443", http.StatusOK, true},
+		"match bare":                   {"example.com", "example.com", nil, http.StatusOK, true},
+		"match with standard port":     {"example.com", "example.com:443", nil, http.StatusOK, true},
+		"match with non-standard port": {"example.com", "example.com:8443", nil, http.StatusOK, true},
 
 		// Mismatching hosts — 421, next handler not called.
-		"mismatch bare":      {"a.example.com", "b.example.com", http.StatusMisdirectedRequest, false},
-		"mismatch with port": {"a.example.com", "b.example.com:443", http.StatusMisdirectedRequest, false},
+		"mismatch bare":      {"a.example.com", "b.example.com", nil, http.StatusMisdirectedRequest, false},
+		"mismatch with port": {"a.example.com", "b.example.com:443", nil, http.StatusMisdirectedRequest, false},
 
 		// Case insensitivity.
-		"match mixed case": {"Example.COM", "example.com", http.StatusOK, true},
+		"match mixed case": {"Example.COM", "example.com", nil, http.StatusOK, true},
 
 		// Trailing FQDN dot normalization.
-		"match FQDN dot in SNI":  {"example.com.", "example.com", http.StatusOK, true},
-		"match FQDN dot in Host": {"example.com", "example.com.", http.StatusOK, true},
-		"match FQDN dot both":    {"example.com.", "example.com.", http.StatusOK, true},
+		"match FQDN dot in SNI":  {"example.com.", "example.com", nil, http.StatusOK, true},
+		"match FQDN dot in Host": {"example.com", "example.com.", nil, http.StatusOK, true},
+		"match FQDN dot both":    {"example.com.", "example.com.", nil, http.StatusOK, true},
 
 		// Port and trailing dot together.
-		"match port and FQDN dot": {"example.com", "example.com.:443", http.StatusOK, true},
+		"match port and FQDN dot": {"example.com", "example.com.:443", nil, http.StatusOK, true},
 
 		// Empty values — cannot compare, pass through.
-		"empty SNI":  {"", "example.com", http.StatusOK, true},
-		"empty Host": {"example.com", "", http.StatusOK, true},
+		"empty SNI":  {"", "example.com", nil, http.StatusOK, true},
+		"empty Host": {"example.com", "", nil, http.StatusOK, true},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			next := new(MockHandler)
 			next.On("ServeHTTP", mock.Anything, mock.Anything).Maybe()
-			handler := newMiddleware(t, next)
+			handler := newMiddleware(t, next, tc.config)
 
 			req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
 			req.TLS = &tls.ConnectionState{ServerName: tc.sni}
@@ -88,9 +89,12 @@ func TestServeHTTP(t *testing.T) {
 	}
 }
 
-func newMiddleware(t *testing.T, next http.Handler) http.Handler {
+func newMiddleware(t *testing.T, next http.Handler, config *traefik_sni.Config) http.Handler {
 	t.Helper()
-	handler, err := traefik_sni.New(context.Background(), next, traefik_sni.CreateConfig(), "test-sni-match")
+	if config == nil {
+		config = traefik_sni.CreateConfig()
+	}
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni-match")
 	require.NoError(t, err)
 	return handler
 }
