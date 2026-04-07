@@ -74,8 +74,22 @@ func TestServeHTTP(t *testing.T) {
 		"mismatch audit mode": {"a.example.com", "b.example.com", &traefik_sni.Config{Mode: "audit"}, http.StatusOK, true},
 
 		// Empty values — cannot compare, pass through.
-		"empty SNI":  {"", "example.com", nil, http.StatusOK, true},
-		"empty Host": {"example.com", "", nil, http.StatusOK, true},
+		"empty SNI rejected by default": {"", "example.com", nil, http.StatusMisdirectedRequest, false},
+		"empty Host":                    {"example.com", "", nil, http.StatusOK, true},
+
+		// Empty SNI -- allowed when rejectOnMissingSNI=false.
+		"empty SNI allowed when configured": {
+			"", "example.com",
+			&traefik_sni.Config{Mode: "enforce", RejectOnMissingSNI: false},
+			http.StatusOK, true,
+		},
+
+		// Empty SNI -- audit mode logs but allows.
+		"empty SNI audit mode": {
+			"", "example.com",
+			&traefik_sni.Config{Mode: "audit", RejectOnMissingSNI: true},
+			http.StatusOK, true,
+		},
 	}
 
 	for name, tc := range tests {

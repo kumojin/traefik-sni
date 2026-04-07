@@ -15,13 +15,15 @@ import (
 
 // Config holds the plugin configuration.
 type Config struct {
-	Mode string `json:"mode,omitempty"`
+	Mode               string `json:"mode,omitempty"`
+	RejectOnMissingSNI bool   `json:"rejectOnMissingSNI,omitempty"`
 }
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
-		Mode: "enforce",
+		Mode:               "enforce",
+		RejectOnMissingSNI: true,
 	}
 }
 
@@ -63,6 +65,12 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	sni := normalizeHost(req.TLS.ServerName)
 	host := normalizeHost(req.Host)
+
+	// If SNI is missing and the config says to reject, do so.
+	if sni == "" && m.config.RejectOnMissingSNI {
+		m.reject(rw, req, "missing SNI", sni, host)
+		return
+	}
 
 	// If either value is empty, we cannot make a comparison. Pass through.
 	// This handles cases like health checks using IPs (no SNI) or edge cases
