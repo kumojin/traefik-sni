@@ -14,11 +14,15 @@ import (
 )
 
 // Config holds the plugin configuration.
-type Config struct{}
+type Config struct {
+	Mode string `json:"mode,omitempty"`
+}
 
 // CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
-	return &Config{}
+	return &Config{
+		Mode: "enforce",
+	}
 }
 
 // SNIMatch is the middleware that enforces SNI/Host header consistency.
@@ -26,6 +30,7 @@ type SNIMatch struct {
 	next   http.Handler
 	name   string
 	logger *slog.Logger
+	config *Config
 }
 
 // New creates a new SNIMatch middleware instance.
@@ -34,10 +39,15 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		return nil, fmt.Errorf("next handler cannot be nil")
 	}
 
+	if config.Mode != "enforce" && config.Mode != "audit" {
+		return nil, fmt.Errorf("invalid mode %q: must be \"enforce\" or \"audit\"", config.Mode)
+	}
+
 	return &SNIMatch{
 		next:   next,
 		name:   name,
 		logger: slog.New(slog.NewTextHandler(os.Stderr, nil)).With("middleware", name),
+		config: config,
 	}, nil
 }
 

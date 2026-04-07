@@ -19,6 +19,15 @@ func TestNew_NilNext(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNew_InvalidMode(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.Mode = "invalid"
+	_, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid mode")
+}
+
 func TestServeHTTP_NoTLS(t *testing.T) {
 	next := new(MockHandler)
 	next.On("ServeHTTP", mock.Anything, mock.Anything).Once()
