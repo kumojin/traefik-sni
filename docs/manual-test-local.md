@@ -22,9 +22,8 @@ scp -r ./traefik-sni root@<SERVER_IP>:~/traefik-test/plugins-local/src/github.co
 
 ## Static config
 
-Create (or replace) `traefik.yml`:
-
-```yaml
+```bash
+cat <<'EOF' > traefik-static-prot.yml
 log:
   level: DEBUG
 
@@ -39,15 +38,15 @@ experimental:
 
 providers:
   file:
-    directory: ./dynamic
+    filename: ./traefik-dynamic-prot.yml
     watch: true
+EOF
 ```
 
 ## Dynamic config
 
-Create (or replace) `dynamic/dynamic.yml`:
-
-```yaml
+```bash
+cat <<'EOF' > traefik-dynamic-prot.yml
 http:
   routers:
     legit:
@@ -71,7 +70,13 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni: {}
+        traefik-sni:
+          rejectOnMissingSNI: true
+          rejectOnMissingHost: false
+          logOnly: false
+          logLevel: INFO
+          logFilePath: ""
+          logFormat: common
 
   services:
     legit:
@@ -88,21 +93,20 @@ tls:
   certificates:
     - certFile: certs/cert.pem
       keyFile: certs/key.pem
+EOF
 ```
 
 ## Start Traefik
 
 ```bash
-traefik --configfile traefik.yml &
+traefik --configfile traefik-static-prot.yml
 ```
 
-### Verify plugin loaded
+Check the log output for a line about loading `traefik-sni`. There should be two of them, similar to the following:
 
-```bash
-traefik version
+```plain
+time=2026-04-08T16:39:43.879Z level=INFO msg=started middleware=sni-check@file rejectOnMissingSNI=true rejectOnMissingHost=false logOnly=false
 ```
-
-Check the log output for a line about loading `traefik-sni`.
 
 ## Tests
 
@@ -114,7 +118,11 @@ Run from your **local machine**, not the server.
 curl -sk https://legit.example.com/
 ```
 
-Expected: 200, body contains `Name: legit`.
+Expected: 200, body contains `Name: legit`. As before, the request should trigger a log line similar to the following:
+
+```plain
+2026-04-08T16:41:23Z DBG github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/wrr/wrr.go:213 > Service selected by WRR: http://127.0.0.1:8001
+```
 
 ### Domain fronting attack
 
@@ -124,7 +132,11 @@ curl -sk --resolve legit.example.com:443:<SERVER_IP> \
   https://legit.example.com/
 ```
 
-Expected: **421 Misdirected Request**. The plugin detected the SNI/Host mismatch and rejected the request.
+Expected: **421 Misdirected Request**. The plugin detected the SNI/Host mismatch and rejected the request. A warning log should indicate this:
+
+```plain
+time=2026-04-08T16:42:15.356Z level=WARN msg="misdirected request" middleware=sni-check@file sni=legit.example.com host=victim.example.com
+```
 
 ### Verbose check
 
@@ -137,10 +149,18 @@ curl -sk -v \
 
 Expected: `< HTTP/2 421`.
 
-## Stop Traefik
+### Missing SNI (rejectOnMissingSNI)
+
+Connect directly to the server IP instead of using the domain name. Per RFC 6066, TLS clients must not send SNI for IP addresses, so Traefik receives an empty server name.
 
 ```bash
-pkill traefik
+curl -sk -H "Host: legit.example.com" https://<SERVER_IP>/
 ```
+
+Expected with `rejectOnMissingSNI: true` (default): **421 Misdirected Request**.
+
+To verify the plugin allows it when configured, set `rejectOnMissingSNI: false` in `traefik-dynamic-prot.yml`, wait for Traefik to reload, and repeat the command. Expected: 200, body contains `Name: legit`.
+
+> **Note:** `rejectOnMissingHost` cannot be tested via curl. Traefik's router needs the Host header to match `Host(...)` rules and route the request to the middleware. Without it, Traefik returns 404 before the middleware runs. The setting exists as defense-in-depth for edge cases (e.g., health check probes, other middleware stripping the Host header upstream).
 
 See [cleanup instructions](manual-test.md#cleanup) to tear down the full environment.

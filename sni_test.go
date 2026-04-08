@@ -192,6 +192,7 @@ func TestLogOutput_Startup(t *testing.T) {
 	logFile := filepath.Join(t.TempDir(), "test.log")
 	config := traefik_sni.CreateConfig()
 	config.LogFilePath = logFile
+	config.LogLevel = "DEBUG"
 
 	next := new(MockHandler)
 	_, err := traefik_sni.New(context.Background(), next, config, "test-sni")
@@ -201,11 +202,16 @@ func TestLogOutput_Startup(t *testing.T) {
 	require.NoError(t, err)
 
 	log := string(content)
-	assert.Contains(t, log, "msg=started")
+	// INFO line: plugin started.
+	assert.Contains(t, log, `msg="plugin started"`)
 	assert.Contains(t, log, "middleware=test-sni")
+	// DEBUG line: full configuration.
+	assert.Contains(t, log, "msg=configuration")
 	assert.Contains(t, log, "rejectOnMissingSNI=true")
 	assert.Contains(t, log, "rejectOnMissingHost=false")
 	assert.Contains(t, log, "logOnly=false")
+	assert.Contains(t, log, "logLevel=DEBUG")
+	assert.Contains(t, log, "logFormat=common")
 }
 
 func TestLogOutput_MismatchCommonFormat(t *testing.T) {
@@ -291,7 +297,7 @@ func TestLogOutput_LevelSuppressesBelow(t *testing.T) {
 	content, err := os.ReadFile(logFile)
 	require.NoError(t, err)
 
-	// Both startup (INFO) and violation (WARN) are below ERROR — file should be empty.
+	// Both startup (INFO), config (DEBUG), and violation (WARN) are below ERROR — file should be empty.
 	assert.Empty(t, string(content))
 }
 
@@ -320,7 +326,9 @@ func TestLogOutput_LevelAllowsAtThreshold(t *testing.T) {
 	assert.Contains(t, log, "level=WARN")
 	assert.Contains(t, log, `msg="misdirected request"`)
 	// Startup (INFO) should NOT appear — below WARN threshold.
-	assert.NotContains(t, log, "msg=started")
+	assert.NotContains(t, log, `msg="plugin started"`)
+	// Config (DEBUG) should NOT appear either.
+	assert.NotContains(t, log, "msg=configuration")
 }
 
 func TestLogOutput_LogOnlyMode(t *testing.T) {

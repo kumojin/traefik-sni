@@ -64,10 +64,14 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 
 	logger := slog.New(handler).With("middleware", name)
 
-	logger.Info("started",
+	logger.Info("plugin started")
+	logger.Debug("configuration",
 		"rejectOnMissingSNI", config.RejectOnMissingSNI,
 		"rejectOnMissingHost", config.RejectOnMissingHost,
 		"logOnly", config.LogOnly,
+		"logLevel", config.LogLevel,
+		"logFilePath", config.LogFilePath,
+		"logFormat", config.LogFormat,
 	)
 
 	return &SNIMatch{

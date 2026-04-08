@@ -12,4 +12,5 @@ testData:
   rejectOnMissingHost: false
   logOnly: false
   logLevel: INFO
+  logFilePath: ""
   logFormat: common
