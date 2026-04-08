@@ -47,7 +47,7 @@ runs:
           -v "${{ github.workspace }}/${{ inputs.dynamic-config }}:/etc/traefik/dynamic/active.yml:ro" \
           -v "$CERTS_DIR/cert.pem:/etc/traefik/certs/cert.pem:ro" \
           -v "$CERTS_DIR/key.pem:/etc/traefik/certs/key.pem:ro" \
-          -v "${{ github.workspace }}:/plugins-local/src/github.com/kumojin/traefik-sni:ro" \
+          -v "${{ github.workspace }}:/plugins-local/src/github.com/DialogInsight/traefik-sni-host-check:ro" \
           traefik:v3.3
 
     - name: Wait for Traefik to be ready

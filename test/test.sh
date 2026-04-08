@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# End-to-end tests for the traefik-sni plugin.
+# End-to-end tests for the traefik-sni-host-check plugin.
 #
 # Self-contained: generates certs, starts containers with raw docker commands,
 # runs tests, and cleans up. No docker compose required.
@@ -99,7 +99,6 @@ check_body() {
   if [ "$actual_status" != "$expected_status" ]; then
     echo "  FAIL  $description (expected status $expected_status, got $actual_status)"
     FAIL=$((FAIL + 1))
-    rm -f "$tmpfile"
     return
   fi
 
@@ -175,7 +174,7 @@ docker run -d --name "$CTR_TRAEFIK" --network "$NET" \
   -v "$SCRIPT_DIR/traefik.yml:/etc/traefik/traefik.yml:ro" \
   -v "$DYNAMIC_DIR:/etc/traefik/dynamic" \
   -v "$CERTS_DIR:/etc/traefik/certs:ro" \
-  -v "$PROJECT_ROOT:/plugins-local/src/github.com/kumojin/traefik-sni:ro" \
+  -v "$PROJECT_ROOT:/plugins-local/src/github.com/DialogInsight/traefik-sni-host-check:ro" \
   traefik:v3.3 >/dev/null
 
 # Wait for Traefik to be ready (serves a normal request).

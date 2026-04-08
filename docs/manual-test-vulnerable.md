@@ -1,0 +1,105 @@
+# Testing the Vulnerability (Phase 1)
+
+Prove that domain fronting works when Traefik has no SNI-checking middleware.
+
+> Complete the [prerequisites and setup](manual-test.md) before starting.
+
+## Static config
+
+```bash
+cat <<'EOF' > traefik-static-vuln.yml
+log:
+  level: DEBUG
+
+entryPoints:
+  websecure:
+    address: ":443"
+
+providers:
+  file:
+    filename: ./traefik-dynamic-vuln.yml
+    watch: true
+EOF
+```
+
+No `experimental` section -- no plugin.
+
+## Dynamic config
+
+```bash
+cat <<'EOF' > traefik-dynamic-vuln.yml
+http:
+  routers:
+    legit:
+      rule: "Host(`legit.example.com`)"
+      entryPoints:
+        - websecure
+      service: legit
+      tls: {}
+
+    victim:
+      rule: "Host(`victim.example.com`)"
+      entryPoints:
+        - websecure
+      service: victim
+      tls: {}
+
+  services:
+    legit:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8001"
+
+    victim:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8002"
+
+tls:
+  certificates:
+    - certFile: certs/cert.pem
+      keyFile: certs/key.pem
+EOF
+```
+
+No middleware on the routers.
+
+## Start Traefik
+
+```bash
+traefik --configfile traefik-static-vuln.yml
+```
+
+## Tests
+
+Run from your **local machine**, not the server.
+
+### Normal request
+
+```bash
+curl -sk https://legit.example.com/
+```
+
+Expected: 200, body contains `Name: legit`. Traefik logs should contain a new line similar to the following:
+
+```plain
+2026-04-08T16:28:15Z DBG github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/wrr/wrr.go:213 > Service selected by WRR: http://127.0.0.1:8001
+```
+
+### Domain fronting attack
+
+```bash
+curl -sk --resolve legit.example.com:443:<SERVER_IP> \
+  -H "Host: victim.example.com" \
+  https://legit.example.com/
+```
+
+Expected: 200, body contains `Name: victim`. The traefik logs should be similar to the previous log, but pointing to port 8002:
+
+```plain
+2026-04-08T16:30:05Z DBG github.com/traefik/traefik/v3/pkg/server/service/loadbalancer/wrr/wrr.go:213 > Service selected by WRR: http://127.0.0.1:8002
+```
+
+**This is the vulnerability.** The TLS handshake used SNI = `legit.example.com`, but the HTTP Host header says `victim.example.com`. Traefik routes on Host, so the request reaches the victim backend despite connecting via the legit domain.
+
+Next: [Testing with the plugin](manual-test-protected.md) to prove the plugin blocks this attack.

@@ -24,7 +24,13 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni: {}
+        traefik-sni-host-check:
+          rejectOnMissingSNI: true
+          rejectOnMissingHost: false
+          logOnly: false
+          logLevel: INFO
+          logFilePath: ""
+          logFormat: common
 
   services:
     legit:
