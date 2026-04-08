@@ -11,8 +11,8 @@ Traefik middleware plugin, interpreted by Yaegi at runtime (no compilation). Pre
 ```
 ├── sni.go                         # Core middleware (Config, CreateConfig, New, ServeHTTP, normalizeHost, parseLogLevel, logOutput, logHandler)
 ├── sni_test.go                    # Unit tests (30 cases, testify assert/require/mock, map-driven table)
-├── .traefik.yml                   # Traefik plugin manifest
-├── go.mod / go.sum                # Go module (single dep: testify)
+├── .traefik.yml                   # Traefik plugin manifest (import: github.com/DialogInsight/traefik-sni-host-check)
+├── go.mod / go.sum                # Go module (github.com/DialogInsight/traefik-sni-host-check, single dep: testify)
 ├── test/
 │   ├── test.sh                    # Self-contained e2e test script (both phases, 4 tests)
 │   ├── traefik.yml                # Traefik static config for tests

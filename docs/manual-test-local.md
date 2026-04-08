@@ -1,6 +1,6 @@
 # Testing with Local Plugin (Phase 2)
 
-Prove the traefik-sni plugin blocks domain fronting using Traefik's local plugin mechanism.
+Prove the traefik-sni-host-check plugin blocks domain fronting using Traefik's local plugin mechanism.
 
 > Complete [Phase 1](manual-test-vulnerability.md) first to confirm the vulnerability exists, then return here.
 
@@ -9,15 +9,15 @@ Prove the traefik-sni plugin blocks domain fronting using Traefik's local plugin
 On the server, clone the repo into the path Traefik expects for local plugins (relative to the working directory):
 
 ```bash
-mkdir -p plugins-local/src/github.com/kumojin
-git clone https://github.com/kumojin/traefik-sni.git \
-  plugins-local/src/github.com/kumojin/traefik-sni
+mkdir -p plugins-local/src/github.com/DialogInsight
+git clone https://github.com/DialogInsight/traefik-sni-host-check.git \
+  plugins-local/src/github.com/DialogInsight/traefik-sni-host-check
 ```
 
 Or copy from your local machine:
 
 ```bash
-scp -r ./traefik-sni root@<SERVER_IP>:~/traefik-test/plugins-local/src/github.com/kumojin/traefik-sni
+scp -r ./traefik-sni-host-check root@<SERVER_IP>:~/traefik-test/plugins-local/src/github.com/DialogInsight/traefik-sni-host-check
 ```
 
 ## Static config
@@ -33,8 +33,8 @@ entryPoints:
 
 experimental:
   localPlugins:
-    traefik-sni:
-      moduleName: github.com/kumojin/traefik-sni
+    traefik-sni-host-check:
+      moduleName: github.com/DialogInsight/traefik-sni-host-check
 
 providers:
   file:
@@ -70,7 +70,7 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni:
+        traefik-sni-host-check:
           rejectOnMissingSNI: true
           rejectOnMissingHost: false
           logOnly: false
@@ -102,7 +102,7 @@ EOF
 traefik --configfile traefik-static-prot.yml
 ```
 
-Check the log output for a line about loading `traefik-sni`. There should be two of them, similar to the following:
+Check the log output for a line about loading `traefik-sni-host-check`. There should be two of them, similar to the following:
 
 ```plain
 time=2026-04-08T16:39:43.879Z level=INFO msg=started middleware=sni-check@file rejectOnMissingSNI=true rejectOnMissingHost=false logOnly=false

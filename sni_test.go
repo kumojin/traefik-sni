@@ -1,4 +1,4 @@
-package traefik_sni_test
+package traefik_sni_host_check_test
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	traefik_sni "github.com/kumojin/traefik-sni"
+	traefik_sni "github.com/DialogInsight/traefik-sni-host-check"
 )
 
 func TestNew_NilNext(t *testing.T) {

@@ -1,4 +1,4 @@
-# traefik-sni
+# traefik-sni-host-check
 
 A Traefik middleware plugin that prevents domain fronting by comparing the TLS SNI server name with the HTTP Host header.
 
@@ -32,7 +32,7 @@ In `logOnly` mode, all violations are logged but requests are allowed through.
 For development and testing, mount the plugin source into the Traefik container:
 
 ```sh
-docker run -v /path/to/traefik-sni:/plugins-local/src/github.com/kumojin/traefik-sni traefik
+docker run -v /path/to/traefik-sni-host-check:/plugins-local/src/github.com/DialogInsight/traefik-sni-host-check traefik
 ```
 
 Static configuration (`traefik.yml`):
@@ -40,8 +40,8 @@ Static configuration (`traefik.yml`):
 ```yaml
 experimental:
   localPlugins:
-    traefik-sni:
-      moduleName: github.com/kumojin/traefik-sni
+    traefik-sni-host-check:
+      moduleName: github.com/DialogInsight/traefik-sni-host-check
 ```
 
 ### Plugin Catalog
@@ -51,8 +51,8 @@ For production, the plugin published in the [Traefik Plugin Catalog](https://plu
 ```yaml
 experimental:
   plugins:
-    traefik-sni:
-      moduleName: github.com/kumojin/traefik-sni
+    traefik-sni-host-check:
+      moduleName: github.com/DialogInsight/traefik-sni-host-check
       version: v0.1.0
 ```
 
@@ -65,7 +65,7 @@ http:
   middlewares:
     sni-check:
       plugin:
-        traefik-sni:
+        traefik-sni-host-check:
           rejectOnMissingSNI: true
           rejectOnMissingHost: false
           logOnly: false

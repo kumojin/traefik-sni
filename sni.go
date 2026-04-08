@@ -1,7 +1,8 @@
-// Package traefik_sni is a Traefik middleware plugin that compares the TLS SNI
-// server name with the HTTP Host header and returns 421 Misdirected Request
-// when they do not match. This prevents domain fronting attacks.
-package traefik_sni
+// Package traefik_sni_host_check is a Traefik middleware plugin that compares
+// the TLS SNI server name with the HTTP Host header and returns
+// 421 Misdirected Request when they do not match. This prevents domain
+// fronting attacks.
+package traefik_sni_host_check
 
 import (
 	"context"

@@ -74,7 +74,7 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/kumojin/traefik-sni
+        - github.com/DialogInsight/traefik-sni-host-check
 
   exclusions:
     generated: lax

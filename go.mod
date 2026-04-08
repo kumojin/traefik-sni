@@ -1,4 +1,4 @@
-module github.com/kumojin/traefik-sni
+module github.com/DialogInsight/traefik-sni-host-check
 
 go 1.22
 

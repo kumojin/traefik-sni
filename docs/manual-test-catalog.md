@@ -17,8 +17,8 @@ Once published, the static config will use `experimental.plugins` with `moduleNa
 ```yaml
 experimental:
   plugins:
-    traefik-sni:
-      moduleName: github.com/kumojin/traefik-sni
+    traefik-sni-host-check:
+      moduleName: github.com/DialogInsight/traefik-sni-host-check
       version: v0.1.0
 ```
 

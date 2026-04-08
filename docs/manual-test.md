@@ -1,6 +1,6 @@
 # Manual Testing
 
-Manual tests validate the traefik-sni plugin on a real server (e.g., a DigitalOcean droplet). Two phases:
+Manual tests validate the traefik-sni-host-check plugin on a real server (e.g., a DigitalOcean droplet). Two phases:
 
 1. **Vulnerable** -- prove domain fronting works without the plugin.
 2. **Protected** -- prove the plugin blocks it.

@@ -1,6 +1,6 @@
 displayName: "SNI Host Check"
 type: middleware
-import: github.com/kumojin/traefik-sni
+import: github.com/DialogInsight/traefik-sni-host-check
 
 summary: |
   Compares the TLS SNI server name with the HTTP Host header and returns
