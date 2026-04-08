@@ -75,11 +75,10 @@ curl -s http://127.0.0.1:8002/ | grep "Name: victim"
 
 ## Next Steps
 
-Start with the vulnerability test to confirm domain fronting works without the plugin, then pick a protection method:
+Start with the vulnerability test to confirm domain fronting works without the plugin, then test the protection:
 
-1. **[Testing the vulnerability](manual-test-vulnerability.md)** -- start here to prove domain fronting works without the plugin
-2. **[Testing with local plugin](manual-test-local.md)** -- prove the plugin blocks domain fronting using a local copy of the plugin source
-3. **[Testing from Plugin Catalog](manual-test-catalog.md)** -- prove the plugin blocks domain fronting using the published plugin from the catalog
+1. **[Testing the vulnerability](manual-test-vulnerable.md)** -- start here to prove domain fronting works without the plugin
+2. **[Testing with the plugin](manual-test-protected.md)** -- prove the plugin blocks domain fronting (local plugin or Plugin Catalog)
 
 ## Cleanup
 

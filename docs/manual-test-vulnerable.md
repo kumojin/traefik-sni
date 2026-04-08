@@ -102,4 +102,4 @@ Expected: 200, body contains `Name: victim`. The traefik logs should be similar 
 
 **This is the vulnerability.** The TLS handshake used SNI = `legit.example.com`, but the HTTP Host header says `victim.example.com`. Traefik routes on Host, so the request reaches the victim backend despite connecting via the legit domain.
 
-Next: [Testing with local plugin](manual-test-local.md) to prove the plugin blocks this attack.
+Next: [Testing with the plugin](manual-test-protected.md) to prove the plugin blocks this attack.

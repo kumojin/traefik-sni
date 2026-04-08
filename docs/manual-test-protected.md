@@ -1,10 +1,16 @@
-# Testing with Local Plugin (Phase 2)
+# Testing with the Plugin (Phase 2)
 
-Prove the traefik-sni-host-check plugin blocks domain fronting using Traefik's local plugin mechanism.
+Prove the traefik-sni-host-check plugin blocks domain fronting.
 
-> Complete [Phase 1](manual-test-vulnerability.md) first to confirm the vulnerability exists, then return here.
+> Complete [Phase 1](manual-test-vulnerable.md) first to confirm the vulnerability exists, then return here.
 
-## Get the plugin source
+Pick one of the two options below to load the plugin, then continue with the shared dynamic config and tests.
+
+## Option A: Local plugin
+
+Use this during development or before the plugin is published to the catalog.
+
+### Get the plugin source
 
 On the server, clone the repo into the path Traefik expects for local plugins (relative to the working directory):
 
@@ -20,7 +26,7 @@ Or copy from your local machine:
 scp -r ./traefik-sni-host-check root@<SERVER_IP>:~/traefik-test/plugins-local/src/github.com/DialogInsight/traefik-sni-host-check
 ```
 
-## Static config
+### Static config
 
 ```bash
 cat <<'EOF' > traefik-static-prot.yml
@@ -43,7 +49,47 @@ providers:
 EOF
 ```
 
+## Option B: Plugin Catalog
+
+Use this once the plugin is published to the [Traefik Plugin Catalog](https://plugins.traefik.io).
+
+### Prerequisites for publication
+
+- Public GitHub repository
+- `traefik-plugin` topic added to the repo
+- `.traefik.yml` manifest in the repo root
+- A git tag (semver, e.g., `v0.1.0`)
+- Wait for the catalog to crawl (~30 minutes)
+
+### Static config
+
+No local plugin source is needed -- Traefik downloads it from GitHub automatically.
+
+```bash
+cat <<'EOF' > traefik-static-prot.yml
+log:
+  level: DEBUG
+
+entryPoints:
+  websecure:
+    address: ":443"
+
+experimental:
+  plugins:
+    traefik-sni-host-check:
+      moduleName: github.com/DialogInsight/traefik-sni-host-check
+      version: v0.1.0
+
+providers:
+  file:
+    filename: ./traefik-dynamic-prot.yml
+    watch: true
+EOF
+```
+
 ## Dynamic config
+
+The dynamic config is the same regardless of how the plugin is loaded.
 
 ```bash
 cat <<'EOF' > traefik-dynamic-prot.yml
