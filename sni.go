@@ -18,9 +18,9 @@ import (
 
 // Config holds the plugin configuration.
 type Config struct {
-	RejectOnMissingSNI  bool   `json:"rejectOnMissingSNI,omitempty"`
-	RejectOnMissingHost bool   `json:"rejectOnMissingHost,omitempty"`
-	LogOnly             bool   `json:"logOnly,omitempty"`
+	RejectOnMissingSNI  bool   `json:"rejectOnMissingSNI"`
+	RejectOnMissingHost bool   `json:"rejectOnMissingHost"`
+	LogOnly             bool   `json:"logOnly"`
 	LogLevel            string `json:"logLevel,omitempty"`
 	LogFilePath         string `json:"logFilePath,omitempty"`
 	LogFormat           string `json:"logFormat,omitempty"`
@@ -47,6 +47,10 @@ type SNIMatch struct {
 func New(_ context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	if next == nil {
 		return nil, fmt.Errorf("next handler cannot be nil")
+	}
+
+	if config == nil {
+		config = CreateConfig()
 	}
 
 	level, err := parseLogLevel(config.LogLevel)
@@ -158,6 +162,14 @@ func parseLogLevel(s string) (slog.Level, error) {
 
 // logOutput returns the writer for log output. If path is empty, os.Stdout is
 // used. Otherwise the file at path is opened for appending.
+//
+// Note: when a file path is provided, the returned writer holds an open file
+// handle that is never explicitly closed. This is intentional — the file stays
+// open for the lifetime of the middleware instance, and Traefik does not
+// provide a shutdown hook for plugins. On config reload, Traefik creates a new
+// middleware instance (leaking the old file descriptor). In practice this is
+// negligible: reloads are infrequent, and the OS reclaims all descriptors when
+// the process exits.
 func logOutput(path string) (io.Writer, error) {
 	if path == "" {
 		return os.Stdout, nil

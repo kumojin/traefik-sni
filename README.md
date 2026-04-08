@@ -102,7 +102,7 @@ Use `logOnly: true` for safe rollout: deploy the middleware, observe logs to con
 
 ### Log levels
 
-Enforced rejections (421 returned) are logged at **WARN**. Violations in `logOnly` mode and the startup message are logged at **INFO**. Setting `logLevel: WARN` suppresses log-only observations and the startup message while still logging actual rejections.
+Enforced rejections (421 returned) and violations in `logOnly` mode are logged at **WARN**. The startup message is logged at **INFO**. Setting `logLevel: WARN` suppresses the startup message while still logging all violations (both enforced and log-only).
 
 ### Log output
 

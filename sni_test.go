@@ -23,6 +23,13 @@ func TestNew_NilNext(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNew_NilConfig(t *testing.T) {
+	next := new(MockHandler)
+	handler, err := traefik_sni.New(context.Background(), next, nil, "test")
+	require.NoError(t, err)
+	assert.NotNil(t, handler)
+}
+
 func TestNew_InvalidLogLevel(t *testing.T) {
 	next := new(MockHandler)
 	config := traefik_sni.CreateConfig()
@@ -105,61 +112,62 @@ func TestServeHTTP(t *testing.T) {
 		host           string
 		config         *traefik_sni.Config // nil = CreateConfig() defaults
 		wantStatus     int
+		wantBody       string // expected substring in response body (empty = don't check)
 		wantNextCalled bool
 	}{
 		// Matching hosts — request passes through.
-		"match bare":                   {"example.com", "example.com", nil, http.StatusOK, true},
-		"match with standard port":     {"example.com", "example.com:443", nil, http.StatusOK, true},
-		"match with non-standard port": {"example.com", "example.com:8443", nil, http.StatusOK, true},
+		"match bare":                   {"example.com", "example.com", nil, http.StatusOK, "", true},
+		"match with standard port":     {"example.com", "example.com:443", nil, http.StatusOK, "", true},
+		"match with non-standard port": {"example.com", "example.com:8443", nil, http.StatusOK, "", true},
 
 		// Mismatching hosts — 421, next handler not called.
-		"mismatch bare":      {"a.example.com", "b.example.com", nil, http.StatusMisdirectedRequest, false},
-		"mismatch with port": {"a.example.com", "b.example.com:443", nil, http.StatusMisdirectedRequest, false},
+		"mismatch bare":      {"a.example.com", "b.example.com", nil, http.StatusMisdirectedRequest, "421 misdirected request", false},
+		"mismatch with port": {"a.example.com", "b.example.com:443", nil, http.StatusMisdirectedRequest, "421 misdirected request", false},
 
 		// Case insensitivity.
-		"match mixed case": {"Example.COM", "example.com", nil, http.StatusOK, true},
+		"match mixed case": {"Example.COM", "example.com", nil, http.StatusOK, "", true},
 
 		// Trailing FQDN dot normalization.
-		"match FQDN dot in SNI":  {"example.com.", "example.com", nil, http.StatusOK, true},
-		"match FQDN dot in Host": {"example.com", "example.com.", nil, http.StatusOK, true},
-		"match FQDN dot both":    {"example.com.", "example.com.", nil, http.StatusOK, true},
+		"match FQDN dot in SNI":  {"example.com.", "example.com", nil, http.StatusOK, "", true},
+		"match FQDN dot in Host": {"example.com", "example.com.", nil, http.StatusOK, "", true},
+		"match FQDN dot both":    {"example.com.", "example.com.", nil, http.StatusOK, "", true},
 
 		// Port and trailing dot together.
-		"match port and FQDN dot": {"example.com", "example.com.:443", nil, http.StatusOK, true},
+		"match port and FQDN dot": {"example.com", "example.com.:443", nil, http.StatusOK, "", true},
 
 		// Log-only mode — mismatch logged but not blocked.
-		"mismatch log-only mode": {"a.example.com", "b.example.com", &traefik_sni.Config{LogOnly: true}, http.StatusOK, true},
+		"mismatch log-only mode": {"a.example.com", "b.example.com", &traefik_sni.Config{LogOnly: true}, http.StatusOK, "", true},
 
 		// Empty values — cannot compare, pass through.
-		"empty SNI rejected by default": {"", "example.com", nil, http.StatusMisdirectedRequest, false},
-		"empty Host allowed by default": {"example.com", "", nil, http.StatusOK, true},
+		"empty SNI rejected by default": {"", "example.com", nil, http.StatusMisdirectedRequest, "421 misdirected request", false},
+		"empty Host allowed by default": {"example.com", "", nil, http.StatusOK, "", true},
 
 		// Empty SNI -- allowed when rejectOnMissingSNI=false.
 		"empty SNI allowed when configured": {
 			"", "example.com",
 			&traefik_sni.Config{RejectOnMissingSNI: false},
-			http.StatusOK, true,
+			http.StatusOK, "", true,
 		},
 
 		// Empty SNI -- log-only mode logs but allows.
 		"empty SNI log-only mode": {
 			"", "example.com",
 			&traefik_sni.Config{LogOnly: true, RejectOnMissingSNI: true},
-			http.StatusOK, true,
+			http.StatusOK, "", true,
 		},
 
 		// Empty Host -- rejected when configured.
 		"empty Host rejected when configured": {
 			"example.com", "",
 			&traefik_sni.Config{RejectOnMissingSNI: true, RejectOnMissingHost: true},
-			http.StatusMisdirectedRequest, false,
+			http.StatusMisdirectedRequest, "421 misdirected request", false,
 		},
 
 		// Empty Host -- log-only mode logs but allows.
 		"empty Host log-only mode": {
 			"example.com", "",
 			&traefik_sni.Config{LogOnly: true, RejectOnMissingSNI: true, RejectOnMissingHost: true},
-			http.StatusOK, true,
+			http.StatusOK, "", true,
 		},
 	}
 
@@ -179,6 +187,9 @@ func TestServeHTTP(t *testing.T) {
 			handler.ServeHTTP(rr, req)
 
 			assert.Equal(t, tc.wantStatus, rr.Code)
+			if tc.wantBody != "" {
+				assert.Contains(t, rr.Body.String(), tc.wantBody)
+			}
 			if tc.wantNextCalled {
 				next.AssertCalled(t, "ServeHTTP", mock.Anything, mock.Anything)
 			} else {
@@ -405,11 +416,11 @@ func BenchmarkServeHTTP_Match(b *testing.B) {
 	req := httptest.NewRequest(http.MethodGet, "https://example.com/", nil)
 	req.TLS = &tls.ConnectionState{ServerName: "example.com"}
 	req.Host = "example.com"
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 	}
 }
@@ -424,11 +435,11 @@ func BenchmarkServeHTTP_Mismatch(b *testing.B) {
 	req := httptest.NewRequest(http.MethodGet, "https://example.com/", nil)
 	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
 	req.Host = "b.example.com"
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 	}
 }
@@ -441,11 +452,11 @@ func BenchmarkServeHTTP_NoTLS(b *testing.B) {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
-	rr := httptest.NewRecorder()
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
+		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
 	}
 }

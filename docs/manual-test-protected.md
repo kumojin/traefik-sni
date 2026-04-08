@@ -148,10 +148,11 @@ EOF
 traefik --configfile traefik-static-prot.yml
 ```
 
-Check the log output for a line about loading `traefik-sni-host-check`. There should be two of them, similar to the following:
+Check the log output for startup lines from the plugin. There should be two pairs (one per router), each with an INFO and a DEBUG line similar to the following:
 
 ```plain
-time=2026-04-08T16:39:43.879Z level=INFO msg=started middleware=sni-check@file rejectOnMissingSNI=true rejectOnMissingHost=false logOnly=false
+time=2026-04-08T16:39:43.879Z level=INFO msg="plugin started" middleware=sni-check@file
+time=2026-04-08T16:39:43.879Z level=DEBUG msg=configuration middleware=sni-check@file rejectOnMissingSNI=true rejectOnMissingHost=false logOnly=false logLevel=INFO logFilePath="" logFormat=common
 ```
 
 ## Tests
