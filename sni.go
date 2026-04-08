@@ -7,6 +7,7 @@ package traefik_sni_host_check
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -75,11 +76,13 @@ func New(_ context.Context, next http.Handler, config *Config, name string) (htt
 		"logFormat", config.LogFormat,
 	)
 
+	cfgCopy := *config
+
 	return &SNIMatch{
 		next:   next,
 		name:   name,
 		logger: logger,
-		config: config,
+		config: &cfgCopy,
 	}, nil
 }
 
@@ -129,12 +132,12 @@ func (m *SNIMatch) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // and returns 421 Misdirected Request.
 func (m *SNIMatch) reject(rw http.ResponseWriter, req *http.Request, msg, sni, host string) {
 	if m.config.LogOnly {
-		m.logger.Info(msg+" (log-only mode, request allowed)", "sni", sni, "host", host)
+		m.logger.Warn(msg+" (log-only mode, request allowed)", "sni", sni, "host", host)
 		m.next.ServeHTTP(rw, req)
 		return
 	}
 	m.logger.Warn(msg, "sni", sni, "host", host)
-	rw.WriteHeader(http.StatusMisdirectedRequest)
+	http.Error(rw, "421 misdirected request", http.StatusMisdirectedRequest)
 }
 
 // parseLogLevel converts a string log level to a slog.Level.
@@ -155,7 +158,7 @@ func parseLogLevel(s string) (slog.Level, error) {
 
 // logOutput returns the writer for log output. If path is empty, os.Stdout is
 // used. Otherwise the file at path is opened for appending.
-func logOutput(path string) (*os.File, error) {
+func logOutput(path string) (io.Writer, error) {
 	if path == "" {
 		return os.Stdout, nil
 	}
@@ -170,7 +173,7 @@ func logOutput(path string) (*os.File, error) {
 
 // logHandler creates a slog.Handler based on the format string. Supported
 // values are "common" (slog.TextHandler) and "json" (slog.JSONHandler).
-func logHandler(format string, output *os.File, level slog.Level) (slog.Handler, error) {
+func logHandler(format string, output io.Writer, level slog.Level) (slog.Handler, error) {
 	opts := &slog.HandlerOptions{Level: level}
 
 	switch format {

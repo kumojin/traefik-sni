@@ -99,7 +99,6 @@ check_body() {
   if [ "$actual_status" != "$expected_status" ]; then
     echo "  FAIL  $description (expected status $expected_status, got $actual_status)"
     FAIL=$((FAIL + 1))
-    rm -f "$tmpfile"
     return
   fi
 

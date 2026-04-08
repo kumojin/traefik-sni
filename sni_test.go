@@ -98,6 +98,8 @@ func TestServeHTTP_NoTLS(t *testing.T) {
 }
 
 func TestServeHTTP(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		sni            string
 		host           string
@@ -163,6 +165,8 @@ func TestServeHTTP(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			next := new(MockHandler)
 			next.On("ServeHTTP", mock.Anything, mock.Anything).Maybe()
 			handler := newMiddleware(t, next, tc.config)
@@ -354,7 +358,7 @@ func TestLogOutput_LogOnlyMode(t *testing.T) {
 
 	log := string(content)
 	assert.Contains(t, log, "log-only mode, request allowed")
-	assert.NotContains(t, log, "level=WARN")
+	assert.Contains(t, log, "level=WARN")
 	next.AssertExpectations(t)
 }
 
@@ -379,4 +383,69 @@ type MockHandler struct {
 func (m *MockHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	m.Called(rw, req)
 	rw.WriteHeader(http.StatusOK)
+}
+
+// ---------------------------------------------------------------------------
+// Benchmarks
+// ---------------------------------------------------------------------------
+
+// noopHandler is a minimal http.Handler for benchmarks, avoiding testify/mock
+// overhead in hot loops.
+type noopHandler struct{}
+
+func (noopHandler) ServeHTTP(http.ResponseWriter, *http.Request) {}
+
+func BenchmarkServeHTTP_Match(b *testing.B) {
+	config := traefik_sni.CreateConfig()
+	handler, err := traefik_sni.New(context.Background(), noopHandler{}, config, "bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "example.com"}
+	req.Host = "example.com"
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkServeHTTP_Mismatch(b *testing.B) {
+	config := traefik_sni.CreateConfig()
+	handler, err := traefik_sni.New(context.Background(), noopHandler{}, config, "bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkServeHTTP_NoTLS(b *testing.B) {
+	config := traefik_sni.CreateConfig()
+	handler, err := traefik_sni.New(context.Background(), noopHandler{}, config, "bench")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+	rr := httptest.NewRecorder()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(rr, req)
+	}
 }
