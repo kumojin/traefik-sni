@@ -3,9 +3,12 @@ package traefik_sni_test
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -179,6 +182,172 @@ func TestServeHTTP(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Log output tests — verify log content via logFilePath.
+// ---------------------------------------------------------------------------
+
+func TestLogOutput_Startup(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+
+	next := new(MockHandler)
+	_, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	log := string(content)
+	assert.Contains(t, log, "msg=started")
+	assert.Contains(t, log, "middleware=test-sni")
+	assert.Contains(t, log, "rejectOnMissingSNI=true")
+	assert.Contains(t, log, "rejectOnMissingHost=false")
+	assert.Contains(t, log, "logOnly=false")
+}
+
+func TestLogOutput_MismatchCommonFormat(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+
+	next := new(MockHandler)
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	log := string(content)
+	assert.Contains(t, log, "level=WARN")
+	assert.Contains(t, log, `msg="misdirected request"`)
+	assert.Contains(t, log, "sni=a.example.com")
+	assert.Contains(t, log, "host=b.example.com")
+}
+
+func TestLogOutput_MismatchJSONFormat(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+	config.LogFormat = "json"
+
+	next := new(MockHandler)
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	var found bool
+	for _, line := range strings.Split(strings.TrimSpace(string(content)), "\n") {
+		var entry map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if entry["msg"] == "misdirected request" {
+			assert.Equal(t, "WARN", entry["level"])
+			assert.Equal(t, "a.example.com", entry["sni"])
+			assert.Equal(t, "b.example.com", entry["host"])
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected JSON log entry for 'misdirected request'")
+}
+
+func TestLogOutput_LevelSuppressesBelow(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+	config.LogLevel = "ERROR"
+
+	next := new(MockHandler)
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	// Both startup (INFO) and violation (WARN) are below ERROR — file should be empty.
+	assert.Empty(t, string(content))
+}
+
+func TestLogOutput_LevelAllowsAtThreshold(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+	config.LogLevel = "WARN"
+
+	next := new(MockHandler)
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	log := string(content)
+	// Violation (WARN) should appear.
+	assert.Contains(t, log, "level=WARN")
+	assert.Contains(t, log, `msg="misdirected request"`)
+	// Startup (INFO) should NOT appear — below WARN threshold.
+	assert.NotContains(t, log, "msg=started")
+}
+
+func TestLogOutput_LogOnlyMode(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "test.log")
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = logFile
+	config.LogOnly = true
+
+	next := new(MockHandler)
+	next.On("ServeHTTP", mock.Anything, mock.Anything).Once()
+	handler, err := traefik_sni.New(context.Background(), next, config, "test-sni")
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://test/", nil)
+	req.TLS = &tls.ConnectionState{ServerName: "a.example.com"}
+	req.Host = "b.example.com"
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	content, err := os.ReadFile(logFile)
+	require.NoError(t, err)
+
+	log := string(content)
+	assert.Contains(t, log, "log-only mode, request allowed")
+	assert.NotContains(t, log, "level=WARN")
+	next.AssertExpectations(t)
 }
 
 func newMiddleware(t *testing.T, next http.Handler, config *traefik_sni.Config) http.Handler {

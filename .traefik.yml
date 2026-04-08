@@ -1,4 +1,4 @@
-displayName: "SNI Host Match"
+displayName: "SNI Host Check"
 type: middleware
 import: github.com/kumojin/traefik-sni
 

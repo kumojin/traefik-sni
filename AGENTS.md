@@ -10,7 +10,7 @@ Traefik middleware plugin, interpreted by Yaegi at runtime (no compilation). Pre
 
 ```
 ├── sni.go                         # Core middleware (Config, CreateConfig, New, ServeHTTP, normalizeHost, parseLogLevel, logOutput, logHandler)
-├── sni_test.go                    # Unit tests (24 cases, testify assert/require/mock, map-driven table)
+├── sni_test.go                    # Unit tests (30 cases, testify assert/require/mock, map-driven table)
 ├── .traefik.yml                   # Traefik plugin manifest
 ├── go.mod / go.sum                # Go module (single dep: testify)
 ├── test/
@@ -58,6 +58,12 @@ just test-unit    # go test -v -race ./...
 just test-e2e     # ./test/test.sh (needs Docker)
 just test         # all of the above
 ```
+
+### Why there are no `yaegi test` CI checks
+
+`yaegi test` interprets Go code through the Yaegi interpreter (the same runtime Traefik uses to load plugins), which can catch incompatibilities that `go test` misses. However, our tests use testify, which transitively imports `unsafe` (via `go-spew`), and Yaegi cannot handle `unsafe` imports. Yaegi also does not respect `//go:build` tags for file filtering, so build-tag isolation does not work either.
+
+Yaegi compatibility is instead verified by the e2e tests, which load the plugin into a real Traefik instance via `localPlugins`.
 
 ## Git & GitHub Conventions
 
