@@ -11,3 +11,5 @@ testData:
   rejectOnMissingSNI: true
   rejectOnMissingHost: false
   logOnly: false
+  logLevel: INFO
+  logFormat: common

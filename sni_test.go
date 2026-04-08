@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,6 +18,66 @@ import (
 func TestNew_NilNext(t *testing.T) {
 	_, err := traefik_sni.New(context.Background(), nil, traefik_sni.CreateConfig(), "test")
 	require.Error(t, err)
+}
+
+func TestNew_InvalidLogLevel(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogLevel = "TRACE"
+
+	_, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "logLevel")
+}
+
+func TestNew_InvalidLogFormat(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogFormat = "yaml"
+
+	_, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "logFormat")
+}
+
+func TestNew_InvalidLogFilePath(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = "/nonexistent/directory/test.log"
+
+	_, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "logFilePath")
+}
+
+func TestNew_ValidLogFilePath(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogFilePath = filepath.Join(t.TempDir(), "test.log")
+
+	handler, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.NoError(t, err)
+	assert.NotNil(t, handler)
+}
+
+func TestNew_LogFormatJSON(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogFormat = "json"
+
+	handler, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.NoError(t, err)
+	assert.NotNil(t, handler)
+}
+
+func TestNew_LogLevelCaseInsensitive(t *testing.T) {
+	next := new(MockHandler)
+	config := traefik_sni.CreateConfig()
+	config.LogLevel = "debug"
+
+	handler, err := traefik_sni.New(context.Background(), next, config, "test")
+	require.NoError(t, err)
+	assert.NotNil(t, handler)
 }
 
 func TestServeHTTP_NoTLS(t *testing.T) {

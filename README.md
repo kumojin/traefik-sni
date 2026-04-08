@@ -69,6 +69,8 @@ http:
           rejectOnMissingSNI: true
           rejectOnMissingHost: false
           logOnly: false
+          logLevel: INFO
+          logFormat: common
 
   routers:
     my-router:
@@ -86,12 +88,25 @@ http:
 | `rejectOnMissingSNI` | bool | `true` | Reject TLS requests where the client omitted the SNI extension. |
 | `rejectOnMissingHost` | bool | `false` | Reject TLS requests with an empty HTTP Host header. |
 | `logOnly` | bool | `false` | Log violations without blocking requests. Useful for safe rollout before enforcing. |
+| `logLevel` | string | `"INFO"` | Minimum log level: `DEBUG`, `INFO`, `WARN`, or `ERROR` (case-insensitive). |
+| `logFilePath` | string | `""` | File path to write logs to. Empty means stdout. Must be writable by Traefik. Log rotation requires a Traefik restart. |
+| `logFormat` | string | `"common"` | Log output format: `common` (key=value) or `json`. |
+
+The `logLevel`, `logFilePath`, and `logFormat` values follow [Traefik's own logging configuration](https://doc.traefik.io/traefik/observability/logs/) naming conventions.
 
 Use `logOnly: true` for safe rollout: deploy the middleware, observe logs to confirm no legitimate traffic is flagged, then switch to `logOnly: false`.
 
 `rejectOnMissingSNI` defaults to `true` because a client can bypass the middleware entirely by omitting the SNI extension from the TLS ClientHello. Operators with legitimate empty-SNI traffic (rare) can set this to `false`.
 
 `rejectOnMissingHost` defaults to `false` because an empty Host header is nearly impossible in practice: HTTP/1.1 mandates the Host header, and HTTP/2+ always provides `:authority`.
+
+### Log levels
+
+Enforced rejections (421 returned) are logged at **WARN**. Violations in `logOnly` mode and the startup message are logged at **INFO**. Setting `logLevel: WARN` suppresses log-only observations and the startup message while still logging actual rejections.
+
+### Log output
+
+By default, logs are written to **stdout**. Inside Traefik, plugin stdout is captured by the Yaegi interpreter and re-emitted through Traefik's own logger at DEBUG level. To get clean, unmangled plugin logs, set `logFilePath` to write directly to a file.
 
 ## Development
 
